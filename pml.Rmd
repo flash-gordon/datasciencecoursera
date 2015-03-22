@@ -1,0 +1,86 @@
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+## Exploring the Data
+
+First of all we'll try to understand how many garbage in the file.
+Load all:
+
+```
+> pmlData <- read.csv('pml-training.csv', stringsAsFactors = FALSE)
+> nrow(pmlData)
+[1] 19622
+```
+
+Find all non-digit values:
+```
+> nonDigitValues <- apply(pmlData, 2, function(column) { sort(unique(grep('^\\s*-?\\d+?(\\.\\d+)?$', column, perl = TRUE, invert = TRUE, value = TRUE))) })
+> Filter(x = nonDigitValues, f = function(list) {length(list) > 0})
+
+$user_name
+[1] "adelmo"   "carlitos" "charles"  "eurico"   "jeremy"   "pedro"   
+
+$cvtd_timestamp
+[1] "02/12/2011 13:32" "02/12/2011 13:33" "02/12/2011 13:34" "02/12/2011 13:35" "02/12/2011 14:56" "02/12/2011 14:57" "02/12/2011 14:58"
+[8] "02/12/2011 14:59" "05/12/2011 11:23" "05/12/2011 11:24" "05/12/2011 11:25" "05/12/2011 14:22" "05/12/2011 14:23" "05/12/2011 14:24"
+[15] "28/11/2011 14:13" "28/11/2011 14:14" "28/11/2011 14:15" "30/11/2011 17:10" "30/11/2011 17:11" "30/11/2011 17:12"
+
+$new_window
+[1] "no"  "yes"
+
+$kurtosis_roll_belt
+[1] ""        "#DIV/0!"
+
+$kurtosis_picth_belt
+[1] ""        "#DIV/0!"
+
+$kurtosis_yaw_belt
+[1] ""        "#DIV/0!"
+
+...
+
+$amplitude_yaw_forearm
+[1] ""        "#DIV/0!"
+
+$classe
+[1] "A" "B" "C" "D" "E"
+```
+
+So besides digital values and trivial NAs some columns have:
+
+1. Usernames.
+2. Timestamps (actually only a copule of dozens distinct values).
+3. Some boolean variable calles "new_window".
+4. Prediction-target variable "classe" that can be one of "A", "B", "C", "D", and "E".
+5. Empty strings and "#DIV/0!" values that obviously should be treated as NAs.
+
+## Clean the Data
+
+Load the data once again:
+
+```
+> library(caret)
+> pmlData <- read.csv('pml-training.csv', stringsAsFactors = TRUE, na.strings = c("NA", "", "#DIV/0!"))
+```
+
+There are about 20000 rows and 160 column in the training set. Now we filter out columns that contains a lot of NAs (suppose 80% as threshold) or near-zero values.
+
+```
+> pmlData <- pmlData[, -which(colMeans(is.na(pmlData)) > 0.8)]
+> ncol(pmlData)
+[1] 60
+> pmlData <- pmlData[, -nearZeroVar(pmlData)]
+> ncol(pmlData)
+[1] 59
+```
+
+Now we reduced number of columns to 59.
+
+## Building the Model
+
+Our goal is predict value of "classe" variable that can be one of five possible values. It means we need to perform a classification. For that we can use Random Forest algorithm. The data will be preprocessed with PCA (principal component analysis). 
+
+```
+model <- train(classe~., data = pmlData, method = "rf", preProcess=c("pca"), trControl = trainControl(method = "cv"))
+```
