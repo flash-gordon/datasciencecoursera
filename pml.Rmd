@@ -79,8 +79,40 @@ Now we reduced number of columns to 59.
 
 ## Building the Model
 
-Our goal is predict value of "classe" variable that can be one of five possible values. It means we need to perform a classification. For that we can use Random Forest algorithm. The data will be preprocessed with PCA (principal component analysis). 
+Our goal is predict value of "classe" variable that can be one of five possible values. It means we need to perform a classification. For that we can use Random Forest algorithm. The data will be preprocessed with PCA (principal component analysis). We also use cross-validation for estimation of out-of-sample error.
 
 ```
-model <- train(classe~., data = pmlData, method = "rf", preProcess=c("pca"), trControl = trainControl(method = "cv"))
+> model <- train(classe~., data = pmlData, method = "rf", preProcess=c("pca"), trControl = trainControl(method = "cv"))
+> model
+Random Forest 
+
+19622 samples
+   58 predictor
+    5 classes: 'A', 'B', 'C', 'D', 'E' 
+
+Pre-processing: principal component signal extraction, scaled, centered 
+Resampling: Cross-Validated (10 fold) 
+
+Summary of sample sizes: 17659, 17661, 17660, 17660, 17659, 17659, ... 
+
+Resampling results across tuning parameters:
+
+  mtry  Accuracy   Kappa      Accuracy SD  Kappa SD   
+   2    0.9924061  0.9903936  0.002209104  0.002795076
+  41    0.9846088  0.9805335  0.004181666  0.005288589
+  80    0.9851186  0.9811768  0.003872645  0.004898437
+
+Accuracy was used to select the optimal model using  the largest value.
+The final value used for the model was mtry = 2. 
+```
+
+## Predicting
+
+We use our RF model for predicting values for test set:
+```
+> pmlTestData <- read.csv('pml-testing.csv', stringsAsFactors = TRUE, na.strings = c("NA", "", "#DIV/0!"))
+> predictingColumns <- dimnames(pmlData)[[2]][1:ncol(pmlData) - 1]
+> predict(model, pmlTestData[predictingColumns])
+[1] B A A A A E D B A A B B B A E E A B B B
+Levels: A B C D E
 ```
